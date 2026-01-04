@@ -1,0 +1,11 @@
+{
+    "manifest_version": 3,
+    "name": "New Tab Countdown",
+    "version": "1.0.0",
+    "description": "Replaces new tab with a live countdown to a target date/time.",
+    "chrome_url_overrides": {
+      "newtab": "newtab.html"
+    },
+    "permissions": ["storage"]
+  }
+  

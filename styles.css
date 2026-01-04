@@ -1,0 +1,172 @@
+/* Attempt to hide Chrome's native UI elements */
+[class*="customize-chrome"],
+[id*="customize-chrome"],
+ntp-app,
+#oneGoogleBar,
+#contentSuggestionsOff {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+:root {
+  --bg: #f5f5f3;
+  --text: #1a1a1a;
+  --muted: #666;
+  --border: #ddd;
+  --accent: #333;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wrap {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.stage {
+  display: grid;
+  gap: 24px;
+  place-items: center;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 2px;
+  font-size: clamp(56px, 12vw, 120px);
+  color: var(--text);
+}
+
+.sep {
+  font-size: clamp(48px, 10vw, 100px);
+  color: var(--muted);
+  padding: 0 8px;
+}
+
+.plaque {
+  text-align: center;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.meta {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.targetText {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.targetText:hover {
+  color: var(--text);
+}
+
+.statusText {
+  margin-top: 6px;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 20px;
+}
+
+.hidden { display: none; }
+
+.card {
+  width: min(400px, 90vw);
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.cardTitle {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn:hover {
+  background: var(--bg);
+}
+
+.btn.primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.btn.primary:hover {
+  background: var(--accent);
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
