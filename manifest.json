@@ -1,11 +1,16 @@
 {
-    "manifest_version": 3,
-    "name": "New Tab Countdown",
-    "version": "1.0.0",
-    "description": "Replaces new tab with a live countdown to a target date/time.",
-    "chrome_url_overrides": {
-      "newtab": "newtab.html"
-    },
-    "permissions": ["storage"]
-  }
+  "manifest_version": 3,
+  "name": "New Tab Countdown",
+  "version": "1.0.0",
+  "description": "Replaces new tab with a live countdown to a target date/time.",
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": ["storage"]
+}
   
