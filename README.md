@@ -12,7 +12,7 @@ A minimal Chrome extension that replaces your new tab page with a countdown time
 ## Installation
 
 ### From Chrome Web Store
-*(Coming soon)*
+Find it [here](https://chromewebstore.google.com/detail/every-second-counts/dbpmgoghpheaeldmfgifedhjbdookjbo)
 
 ### Manual Installation
 1. Clone this repository
