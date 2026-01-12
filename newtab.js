@@ -119,10 +119,6 @@ async function updateCountdown(targetDate, soundEnabled, isoLocal, soundPlayedFo
   ss.textContent = pad2(seconds);
 }
 
-function closeDateModal() {
-  dateModal.classList.add("hidden");
-}
-
 function closeSettingsModal() {
   settingsModal.classList.add("hidden");
 }
@@ -146,6 +142,18 @@ async function init() {
   tick();
   setInterval(tick, 250);
 
+  // Save and close date modal
+  async function saveDateAndClose() {
+    const val = dtInput.value?.trim();
+    if (val && val !== isoLocal) {
+      isoLocal = val;
+      await setTargetIsoLocal(isoLocal);
+      targetDate = isoLocalToDate(isoLocal);
+      targetText.textContent = `Target: ${formatLocal(targetDate)}`;
+    }
+    dateModal.classList.add("hidden");
+  }
+
   // Date modal - click target text to open
   targetText.addEventListener("click", () => {
     dtInput.value = isoLocal;
@@ -153,22 +161,9 @@ async function init() {
     dtInput.focus();
   });
 
-  // Auto-save date on change
-  dtInput.addEventListener("change", async () => {
-    const val = dtInput.value?.trim();
-    if (!val) return;
-
-    isoLocal = val;
-    await setTargetIsoLocal(isoLocal);
-
-    targetDate = isoLocalToDate(isoLocal);
-    targetText.textContent = `Target: ${formatLocal(targetDate)}`;
-
-    closeDateModal();
-  });
-
+  // Save and close when clicking outside
   dateModal.addEventListener("click", (e) => {
-    if (e.target === dateModal) closeDateModal();
+    if (e.target === dateModal) saveDateAndClose();
   });
 
   // Settings modal - click gear icon to open
@@ -190,7 +185,7 @@ async function init() {
   // Escape to close any open modal
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      if (!dateModal.classList.contains("hidden")) closeDateModal();
+      if (!dateModal.classList.contains("hidden")) saveDateAndClose();
       if (!settingsModal.classList.contains("hidden")) closeSettingsModal();
     }
   });
