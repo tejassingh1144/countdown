@@ -330,7 +330,7 @@ async function init() {
           shareStatus.textContent = `Limit reached. Try in ${mins} min`;
           setTimeout(() => {
             shareStatus.textContent = "";
-          }, 4000);
+          }, 3000);
           shareBtn.disabled = false;
           return;
         }
