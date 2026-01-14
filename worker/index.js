@@ -217,6 +217,35 @@ function notFound() {
   return new Response('Countdown not found', { status: 404 });
 }
 
+// Rate limiting config
+const RATE_LIMIT = 10; // max requests per window
+const RATE_WINDOW = 3600; // 1 hour in seconds
+
+// Check rate limit for an IP
+async function checkRateLimit(ip, env) {
+  const key = `ratelimit:${ip}`;
+  const current = await env.COUNTDOWNS.get(key);
+
+  if (current) {
+    const count = parseInt(current, 10);
+    if (count >= RATE_LIMIT) {
+      return { allowed: false, remaining: 0 };
+    }
+    await env.COUNTDOWNS.put(key, String(count + 1), { expirationTtl: RATE_WINDOW });
+    return { allowed: true, remaining: RATE_LIMIT - count - 1 };
+  }
+
+  await env.COUNTDOWNS.put(key, '1', { expirationTtl: RATE_WINDOW });
+  return { allowed: true, remaining: RATE_LIMIT - 1 };
+}
+
+// Get client IP from request
+function getClientIP(request) {
+  return request.headers.get('CF-Connecting-IP') ||
+         request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+         'unknown';
+}
+
 // CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -237,6 +266,21 @@ export default {
     // API: Create new countdown
     if (path === '/api/create' && request.method === 'POST') {
       try {
+        // Check rate limit
+        const clientIP = getClientIP(request);
+        const rateLimit = await checkRateLimit(clientIP, env);
+
+        if (!rateLimit.allowed) {
+          return new Response(JSON.stringify({ error: 'Rate limit exceeded. Try again later.' }), {
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              'Retry-After': '3600',
+            },
+          });
+        }
+
         const { target, title } = await request.json();
 
         if (!target) {
