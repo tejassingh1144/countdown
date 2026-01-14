@@ -333,7 +333,7 @@ async function init() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             target: targetDate.toISOString(),
-            title: "Countdown"
+            title: "Every Second Counts"
           })
         });
 

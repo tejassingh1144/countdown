@@ -71,14 +71,50 @@ function renderPage(countdown) {
     }
     .cta {
       margin-top: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
-    .cta a {
-      color: var(--muted);
-      font-size: 12px;
-      text-decoration: none;
-    }
-    .cta a:hover {
+    .get-ext {
+      display: inline-block;
+      padding: 12px 24px;
+      border: 2px solid var(--text);
+      border-radius: 8px;
       color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .get-ext:hover {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .save-btn {
+      display: none;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: var(--text);
+      color: var(--bg);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    .save-btn:hover {
+      opacity: 0.85;
+    }
+    .save-btn.visible {
+      display: block;
+    }
+    .save-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .get-ext.hidden {
+      display: none;
     }
   </style>
 </head>
@@ -95,8 +131,9 @@ function renderPage(countdown) {
     <div class="target" id="target"></div>
     <div class="status" id="status"></div>
     <div class="cta">
-      <a href="https://chromewebstore.google.com/detail/every-second-counts/dbpmgoghpheaeldmfgifedhjbdookjbo" target="_blank">
-        Get the Chrome extension
+      <button id="saveBtn" class="save-btn">Save to Extension</button>
+      <a id="getExt" class="get-ext" href="https://chromewebstore.google.com/detail/every-second-counts/dbpmgoghpheaeldmfgifedhjbdookjbo" target="_blank">
+        Get Extension to Save This Countdown
       </a>
     </div>
   </div>
@@ -136,6 +173,40 @@ function renderPage(countdown) {
 
     update();
     setInterval(update, 250);
+
+    // Extension integration
+    const saveBtn = document.getElementById("saveBtn");
+    const getExt = document.getElementById("getExt");
+
+    // Listen for extension installed signal
+    window.addEventListener("message", (e) => {
+      if (e.data?.type === "COUNTDOWN_EXT_INSTALLED") {
+        saveBtn.classList.add("visible");
+        getExt.classList.add("hidden");
+      }
+      if (e.data?.type === "COUNTDOWN_SAVED") {
+        if (e.data.success) {
+          saveBtn.textContent = "Saved!";
+          saveBtn.disabled = true;
+        } else {
+          saveBtn.textContent = "Failed";
+          setTimeout(() => {
+            saveBtn.textContent = "Save to Extension";
+            saveBtn.disabled = false;
+          }, 2000);
+        }
+      }
+    });
+
+    // Save button click
+    saveBtn.addEventListener("click", () => {
+      saveBtn.textContent = "Saving...";
+      saveBtn.disabled = true;
+      window.postMessage({ type: "SAVE_COUNTDOWN", target: "${target}" }, "*");
+    });
+
+    // Ping extension to check if installed
+    window.postMessage({ type: "COUNTDOWN_EXT_PING" }, "*");
   </script>
 </body>
 </html>`;
