@@ -14,6 +14,7 @@ ntp-app,
   --muted: #888;
   --border: #e0e0e0;
   --input-bg: #fff;
+  color-scheme: light;
 }
 
 [data-theme="dark"] {
@@ -155,6 +156,7 @@ body {
   background: var(--input-bg);
   color: var(--text);
   font-size: 14px;
+  color-scheme: inherit;
 }
 
 .input:focus {
