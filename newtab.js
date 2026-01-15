@@ -307,9 +307,26 @@ function applyTheme(themeId, customColors = null) {
   root.style.setProperty('--border', colors.border);
   root.style.setProperty('--input-bg', colors.inputBg);
 
-  // Set data-theme for color-scheme (affects native inputs)
-  const isDark = colors.bg.toLowerCase() < '#888888';
+  // Determine if theme is dark based on background luminance
+  const isDark = isColorDark(colors.bg);
   root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+  // Set color-scheme for native inputs (calendar, etc.)
+  root.style.colorScheme = isDark ? 'dark' : 'light';
+}
+
+/**
+ * Check if a hex color is dark
+ * @param {string} hex - Hex color string
+ * @returns {boolean} True if color is dark
+ */
+function isColorDark(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
 }
 
 /**
