@@ -257,3 +257,183 @@ body {
 .coffee-link:hover {
   color: var(--text);
 }
+
+/* Premium banner */
+.premium-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.premium-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.premium-status {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Upgrade banner */
+.upgrade-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.upgrade-btn {
+  padding: 6px 12px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.upgrade-btn:hover {
+  opacity: 0.85;
+}
+
+/* Theme section */
+.theme-section {
+  margin: 16px 0;
+}
+
+.section-label {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s ease;
+}
+
+.theme-preset:hover {
+  border-color: var(--muted);
+}
+
+.theme-preset.active {
+  border-color: var(--text);
+}
+
+.theme-preset.locked {
+  opacity: 0.6;
+}
+
+.preset-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.preset-name {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.theme-preset.active .preset-name {
+  color: var(--text);
+}
+
+.lock-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+}
+
+/* License modal */
+.license-info {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.license-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.primary-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.primary-btn:hover {
+  opacity: 0.85;
+}
+
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.buy-link {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.buy-link:hover {
+  border-color: var(--text);
+}
+
+.license-error {
+  margin-top: 12px;
+  padding: 10px;
+  background: #dc3545;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+}
