@@ -130,7 +130,7 @@ body {
   padding: 60px 20px 20px 20px;
 }
 
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .card {
   width: min(320px, 90vw);
