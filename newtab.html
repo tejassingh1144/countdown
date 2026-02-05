@@ -94,6 +94,21 @@
               </button>
             </div>
 
+            <!-- Background image upload -->
+            <div class="bg-image-section">
+              <div class="bg-image-row">
+                <span>Background image</span>
+                <div class="bg-image-actions">
+                  <label id="bgImageLabel" class="bg-image-btn">
+                    Upload
+                    <input type="file" id="bgImageInput" accept="image/*" hidden />
+                  </label>
+                  <button id="bgImageRemove" class="bg-image-remove hidden">Remove</button>
+                </div>
+              </div>
+              <span class="lock-icon" id="bgImageLock">🔒</span>
+            </div>
+
             <!-- Custom color picker (shown when Custom theme selected) -->
             <div id="customColorPicker" class="custom-color-picker hidden">
               <div class="color-row">

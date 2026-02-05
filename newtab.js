@@ -330,6 +330,41 @@ function isColorDark(hex) {
 }
 
 /**
+ * Gets background image from local storage
+ * @returns {Promise<string|null>} Base64 image data or null
+ */
+async function getBackgroundImage() {
+  const { bgImage = null } = await chrome.storage.local.get({ bgImage: null });
+  return bgImage;
+}
+
+/**
+ * Saves background image to local storage
+ * @param {string|null} imageData - Base64 image data or null to remove
+ */
+async function setBackgroundImage(imageData) {
+  if (imageData) {
+    await chrome.storage.local.set({ bgImage: imageData });
+  } else {
+    await chrome.storage.local.remove('bgImage');
+  }
+}
+
+/**
+ * Applies background image to body
+ * @param {string|null} imageData - Base64 image data or null
+ */
+function applyBackgroundImage(imageData) {
+  if (imageData) {
+    document.body.style.backgroundImage = `url(${imageData})`;
+    document.body.classList.add('has-bg-image');
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.classList.remove('has-bg-image');
+  }
+}
+
+/**
  * Gets cached share link from storage
  * @returns {Promise<{url: string, targetIso: string}|null>} Cached link data
  */
@@ -437,9 +472,15 @@ async function init() {
   let themeId = await getThemeId();
   let customTheme = await getCustomTheme();
   let premium = await isPremium();
+  let bgImage = await getBackgroundImage();
 
   // Apply theme immediately
   applyTheme(themeId, customTheme);
+
+  // Apply background image if set
+  if (bgImage) {
+    applyBackgroundImage(bgImage);
+  }
 
   // Display target date
   targetText.textContent = `Target: ${formatLocal(targetDate)}`;
@@ -550,6 +591,7 @@ async function init() {
     // Refresh premium status from storage
     premium = await isPremium();
     updatePremiumUI();
+    updateBgImageUI();
     settingsModal.classList.remove("hidden");
   });
 
@@ -612,13 +654,80 @@ async function init() {
   colorBorder?.addEventListener("input", handleColorChange);
 
   // ---------------------------------------------------------------------------
-  // License Modal Event Handlers
+  // License Modal Elements (declared early for use in other handlers)
   // ---------------------------------------------------------------------------
 
   const licenseModal = $("licenseModal");
   const licenseInput = $("licenseInput");
   const activateBtn = $("activateBtn");
   const licenseError = $("licenseError");
+
+  // ---------------------------------------------------------------------------
+  // Background Image Elements & UI
+  // ---------------------------------------------------------------------------
+
+  const bgImageInput = $("bgImageInput");
+  const bgImageLabel = $("bgImageLabel");
+  const bgImageRemove = $("bgImageRemove");
+  const bgImageLock = $("bgImageLock");
+
+  // Update background image UI based on premium status
+  function updateBgImageUI() {
+    const isLocked = !premium;
+
+    if (bgImageLabel) {
+      bgImageLabel.classList.toggle("locked", isLocked);
+    }
+    if (bgImageLock) {
+      bgImageLock.style.display = isLocked ? "inline" : "none";
+    }
+    if (bgImageRemove) {
+      bgImageRemove.classList.toggle("hidden", !bgImage);
+    }
+  }
+
+  // Handle background image upload
+  bgImageInput?.addEventListener("change", async (e) => {
+    if (!premium) {
+      licenseModal.classList.remove("hidden");
+      licenseInput.focus();
+      bgImageInput.value = "";
+      return;
+    }
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be under 5MB");
+      bgImageInput.value = "";
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      bgImage = event.target.result;
+      await setBackgroundImage(bgImage);
+      applyBackgroundImage(bgImage);
+      updateBgImageUI();
+    };
+    reader.readAsDataURL(file);
+    bgImageInput.value = "";
+  });
+
+  // Handle background image removal
+  bgImageRemove?.addEventListener("click", async () => {
+    bgImage = null;
+    await setBackgroundImage(null);
+    applyBackgroundImage(null);
+    updateBgImageUI();
+  });
+
+  // ---------------------------------------------------------------------------
+  // License Modal Event Handlers
+  // ---------------------------------------------------------------------------
 
   // Upgrade button opens license modal
   $("upgradeBtn")?.addEventListener("click", () => {
@@ -646,6 +755,7 @@ async function init() {
       licenseModal.classList.add("hidden");
       licenseInput.value = "";
       updatePremiumUI();
+      updateBgImageUI();
     } else {
       licenseError.textContent = result.error || "Activation failed";
       licenseError.classList.remove("hidden");
