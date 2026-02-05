@@ -77,17 +77,142 @@ function isoLocalToDate(isoLocal) {
 }
 
 // =============================================================================
+// License Functions
+// =============================================================================
+
+/**
+ * Gets the stored license from storage
+ * @returns {Promise<{key: string, status: string, validatedAt: number, expiresAt: string|null}|null>}
+ */
+async function getLicense() {
+  const { license = null } = await chrome.storage.sync.get({ license: null });
+  return license;
+}
+
+/**
+ * Saves license to storage
+ * @param {object} license - License object
+ */
+async function setLicense(license) {
+  await chrome.storage.sync.set({ license });
+}
+
+/**
+ * Checks if user has active premium status
+ * @returns {Promise<boolean>}
+ */
+async function isPremium() {
+  const license = await getLicense();
+  if (!license || license.status !== 'active') return false;
+
+  // Check if revalidation is needed (7 days)
+  const now = Date.now();
+  if (now - license.validatedAt > LICENSE_REVALIDATION_MS) {
+    // Revalidate in background
+    revalidateLicense(license.key);
+  }
+
+  // Check expiration (for non-lifetime licenses)
+  if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Revalidates license with server in background
+ * @param {string} licenseKey
+ */
+async function revalidateLicense(licenseKey) {
+  try {
+    const response = await fetch(`${WORKER_URL}/api/license/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey })
+    });
+
+    const data = await response.json();
+
+    if (data.valid) {
+      await setLicense({
+        key: licenseKey,
+        status: 'active',
+        validatedAt: Date.now(),
+        expiresAt: data.expiresAt || null
+      });
+    } else {
+      await setLicense({
+        key: licenseKey,
+        status: 'expired',
+        validatedAt: Date.now(),
+        expiresAt: null
+      });
+    }
+  } catch (e) {
+    // Network error - keep existing status
+    console.error('License revalidation failed:', e);
+  }
+}
+
+/**
+ * Activates a license key
+ * @param {string} licenseKey
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function activateLicense(licenseKey) {
+  try {
+    const response = await fetch(`${WORKER_URL}/api/license/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      await setLicense({
+        key: licenseKey,
+        status: 'active',
+        validatedAt: Date.now(),
+        expiresAt: data.expiresAt || null
+      });
+      return { success: true };
+    }
+
+    return { success: false, error: data.error || 'Activation failed' };
+  } catch (e) {
+    return { success: false, error: 'Network error' };
+  }
+}
+
+// =============================================================================
 // Chrome Storage Functions
 // =============================================================================
+
+/**
+ * Gets today's end of day (11:59 PM) as ISO local string
+ * @returns {string} ISO local string like "2026-02-05T23:59"
+ */
+function getTodayEOD() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}T23:59`;
+}
 
 /**
  * Gets the target date from storage
  * @returns {Promise<string>} ISO local string of target date
  */
 async function getTargetIsoLocal() {
-  const { targetIsoLocal = DEFAULT_TARGET_ISO_LOCAL } =
-    await chrome.storage.sync.get({ targetIsoLocal: DEFAULT_TARGET_ISO_LOCAL });
-  return targetIsoLocal;
+  const result = await chrome.storage.sync.get('targetIsoLocal');
+  // If no target set, use today's end of day
+  if (!result.targetIsoLocal) {
+    return getTodayEOD();
+  }
+  return result.targetIsoLocal;
 }
 
 /**
@@ -133,33 +258,125 @@ async function setSoundPlayedFor(targetIso) {
 }
 
 /**
- * Gets dark mode preference from storage
+ * Gets current theme ID from storage
  * Falls back to system preference if not set
- * @returns {Promise<boolean>} Whether dark mode is enabled
+ * @returns {Promise<string>} Theme ID
  */
-async function getDarkMode() {
-  const { darkMode = null } = await chrome.storage.sync.get({ darkMode: null });
-  // If user hasn't set preference, use system preference
-  if (darkMode === null) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+async function getThemeId() {
+  const { themeId = null } = await chrome.storage.sync.get({ themeId: null });
+
+  // Migration from old darkMode setting
+  if (themeId === null) {
+    const { darkMode = null } = await chrome.storage.sync.get({ darkMode: null });
+    if (darkMode !== null) {
+      const migratedTheme = darkMode ? 'dark' : 'light';
+      await setThemeId(migratedTheme);
+      return migratedTheme;
+    }
+    // Use system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-  return darkMode;
+  return themeId;
 }
 
 /**
- * Saves dark mode preference to storage
- * @param {boolean} val - Dark mode enabled state
+ * Saves theme ID to storage
+ * @param {string} themeId - Theme ID
  */
-async function setDarkMode(val) {
-  await chrome.storage.sync.set({ darkMode: val });
+async function setThemeId(themeId) {
+  await chrome.storage.sync.set({ themeId });
 }
 
 /**
- * Applies theme to the document
- * @param {boolean} isDark - Whether to apply dark theme
+ * Gets custom theme colors from storage
+ * @returns {Promise<object|null>} Custom theme colors or null
  */
-function applyTheme(isDark) {
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+async function getCustomTheme() {
+  const { customTheme = null } = await chrome.storage.sync.get({ customTheme: null });
+  return customTheme;
+}
+
+/**
+ * Saves custom theme colors to storage
+ * @param {object} colors - Custom theme colors
+ */
+async function setCustomTheme(colors) {
+  await chrome.storage.sync.set({ customTheme: colors });
+}
+
+/**
+ * Applies theme colors to the document
+ * @param {string} themeId - Theme ID
+ * @param {object} customColors - Optional custom colors for 'custom' theme
+ */
+function applyTheme(themeId, customColors = null) {
+  const preset = THEME_PRESETS[themeId];
+  const colors = themeId === 'custom' && customColors ? customColors : preset?.colors;
+
+  if (!colors) return;
+
+  const root = document.documentElement;
+  root.style.setProperty('--bg', colors.bg);
+  root.style.setProperty('--text', colors.text);
+  root.style.setProperty('--muted', colors.muted);
+  root.style.setProperty('--border', colors.border);
+  root.style.setProperty('--input-bg', colors.inputBg);
+
+  // Determine if theme is dark based on background luminance
+  const isDark = isColorDark(colors.bg);
+  root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+  // Set color-scheme for native inputs (calendar, etc.)
+  root.style.colorScheme = isDark ? 'dark' : 'light';
+}
+
+/**
+ * Check if a hex color is dark
+ * @param {string} hex - Hex color string
+ * @returns {boolean} True if color is dark
+ */
+function isColorDark(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  // Calculate luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
+/**
+ * Gets background image from local storage
+ * @returns {Promise<string|null>} Base64 image data or null
+ */
+async function getBackgroundImage() {
+  const { bgImage = null } = await chrome.storage.local.get({ bgImage: null });
+  return bgImage;
+}
+
+/**
+ * Saves background image to local storage
+ * @param {string|null} imageData - Base64 image data or null to remove
+ */
+async function setBackgroundImage(imageData) {
+  if (imageData) {
+    await chrome.storage.local.set({ bgImage: imageData });
+  } else {
+    await chrome.storage.local.remove('bgImage');
+  }
+}
+
+/**
+ * Applies background image to body
+ * @param {string|null} imageData - Base64 image data or null
+ */
+function applyBackgroundImage(imageData) {
+  if (imageData) {
+    document.body.style.backgroundImage = `url(${imageData})`;
+    document.body.classList.add('has-bg-image');
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.classList.remove('has-bg-image');
+  }
 }
 
 /**
@@ -225,11 +442,17 @@ async function updateCountdown(targetDate, soundEnabled, isoLocal, soundPlayedFo
   const now = new Date();
   const diffMs = targetDate - now;
 
-  // Countdown finished
+  // Countdown finished - count up to show elapsed time
   if (diffMs <= 0) {
-    hh.textContent = "00";
-    mm.textContent = "00";
-    ss.textContent = "00";
+    const elapsedMs = Math.abs(diffMs);
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    hh.textContent = pad2(hours);
+    mm.textContent = pad2(minutes);
+    ss.textContent = pad2(seconds);
     statusText.textContent = "✅ Time's up!";
 
     // Play sound once when countdown ends
@@ -267,10 +490,18 @@ async function init() {
   let targetDate = isoLocalToDate(isoLocal);
   let soundEnabled = await getSoundEnabled();
   let soundPlayedFor = await getSoundPlayedFor();
-  let darkMode = await getDarkMode();
+  let themeId = await getThemeId();
+  let customTheme = await getCustomTheme();
+  let premium = await isPremium();
+  let bgImage = await getBackgroundImage();
 
   // Apply theme immediately
-  applyTheme(darkMode);
+  applyTheme(themeId, customTheme);
+
+  // Apply background image if set
+  if (bgImage) {
+    applyBackgroundImage(bgImage);
+  }
 
   // Display target date
   targetText.textContent = `Target: ${formatLocal(targetDate)}`;
@@ -318,10 +549,70 @@ async function init() {
   // Settings Modal Event Handlers
   // ---------------------------------------------------------------------------
 
+  // Color picker elements
+  const customColorPicker = $("customColorPicker");
+  const colorBg = $("colorBg");
+  const colorText = $("colorText");
+  const colorMuted = $("colorMuted");
+  const colorBorder = $("colorBorder");
+  const customPreview = $("customPreview");
+
+  // Update custom preview gradient based on custom colors
+  function updateCustomPreview() {
+    if (customTheme) {
+      customPreview.style.background = `linear-gradient(135deg, ${customTheme.bg} 0%, ${customTheme.text} 100%)`;
+    }
+  }
+
+  // Update premium UI
+  function updatePremiumUI() {
+    if (premium) {
+      $("premiumBanner")?.classList.remove("hidden");
+      $("upgradeBanner")?.classList.add("hidden");
+    } else {
+      $("premiumBanner")?.classList.add("hidden");
+      $("upgradeBanner")?.classList.remove("hidden");
+    }
+
+    // Update theme preset buttons
+    document.querySelectorAll(".theme-preset").forEach(btn => {
+      const presetId = btn.dataset.theme;
+      const preset = THEME_PRESETS[presetId];
+      const isLocked = preset?.premium && !premium;
+
+      btn.classList.toggle("locked", isLocked);
+      btn.classList.toggle("active", presetId === themeId);
+
+      const lockIcon = btn.querySelector(".lock-icon");
+      if (lockIcon) {
+        lockIcon.style.display = isLocked ? "inline" : "none";
+      }
+    });
+
+    // Show/hide color picker based on theme and premium status
+    if (themeId === 'custom' && premium) {
+      customColorPicker?.classList.remove("hidden");
+      // Populate color inputs
+      if (customTheme) {
+        colorBg.value = customTheme.bg;
+        colorText.value = customTheme.text;
+        colorMuted.value = customTheme.muted;
+        colorBorder.value = customTheme.border;
+      }
+    } else {
+      customColorPicker?.classList.add("hidden");
+    }
+
+    updateCustomPreview();
+  }
+
   // Open settings modal
-  settingsBtn.addEventListener("click", () => {
+  settingsBtn.addEventListener("click", async () => {
     soundToggle.checked = soundEnabled;
-    darkModeToggle.checked = darkMode;
+    // Refresh premium status from storage
+    premium = await isPremium();
+    updatePremiumUI();
+    updateBgImageUI();
     settingsModal.classList.remove("hidden");
   });
 
@@ -331,11 +622,176 @@ async function init() {
     await setSoundEnabled(soundEnabled);
   });
 
-  // Auto-save dark mode toggle
-  darkModeToggle.addEventListener("change", async () => {
-    darkMode = darkModeToggle.checked;
-    await setDarkMode(darkMode);
-    applyTheme(darkMode);
+  // Theme preset clicks
+  document.querySelectorAll(".theme-preset").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const presetId = btn.dataset.theme;
+      const preset = THEME_PRESETS[presetId];
+
+      // Check if premium theme and user is not premium
+      if (preset?.premium && !premium) {
+        // Open license modal
+        licenseModal.classList.remove("hidden");
+        licenseInput.focus();
+        return;
+      }
+
+      // If selecting custom and no custom theme exists, create default
+      if (presetId === 'custom' && !customTheme) {
+        customTheme = {
+          bg: '#1a1a1a',
+          text: '#f5f5f3',
+          muted: '#888888',
+          border: '#333333',
+          inputBg: '#2a2a2a'
+        };
+        await setCustomTheme(customTheme);
+      }
+
+      themeId = presetId;
+      await setThemeId(themeId);
+      applyTheme(themeId, customTheme);
+      updatePremiumUI();
+    });
+  });
+
+  // Color input change handlers
+  async function handleColorChange() {
+    customTheme = {
+      bg: colorBg.value,
+      text: colorText.value,
+      muted: colorMuted.value,
+      border: colorBorder.value,
+      inputBg: colorBg.value  // Use bg as inputBg base
+    };
+    await setCustomTheme(customTheme);
+    applyTheme('custom', customTheme);
+    updateCustomPreview();
+  }
+
+  colorBg?.addEventListener("input", handleColorChange);
+  colorText?.addEventListener("input", handleColorChange);
+  colorMuted?.addEventListener("input", handleColorChange);
+  colorBorder?.addEventListener("input", handleColorChange);
+
+  // ---------------------------------------------------------------------------
+  // License Modal Elements (declared early for use in other handlers)
+  // ---------------------------------------------------------------------------
+
+  const licenseModal = $("licenseModal");
+  const licenseInput = $("licenseInput");
+  const activateBtn = $("activateBtn");
+  const licenseError = $("licenseError");
+
+  // ---------------------------------------------------------------------------
+  // Background Image Elements & UI
+  // ---------------------------------------------------------------------------
+
+  const bgImageInput = $("bgImageInput");
+  const bgImageLabel = $("bgImageLabel");
+  const bgImageRemove = $("bgImageRemove");
+  const bgImageLock = $("bgImageLock");
+
+  // Update background image UI based on premium status
+  function updateBgImageUI() {
+    const isLocked = !premium;
+
+    if (bgImageLabel) {
+      bgImageLabel.classList.toggle("locked", isLocked);
+    }
+    if (bgImageLock) {
+      bgImageLock.style.display = isLocked ? "inline" : "none";
+    }
+    if (bgImageRemove) {
+      bgImageRemove.classList.toggle("hidden", !bgImage);
+    }
+  }
+
+  // Handle background image upload
+  bgImageInput?.addEventListener("change", async (e) => {
+    if (!premium) {
+      licenseModal.classList.remove("hidden");
+      licenseInput.focus();
+      bgImageInput.value = "";
+      return;
+    }
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be under 5MB");
+      bgImageInput.value = "";
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      bgImage = event.target.result;
+      await setBackgroundImage(bgImage);
+      applyBackgroundImage(bgImage);
+      updateBgImageUI();
+    };
+    reader.readAsDataURL(file);
+    bgImageInput.value = "";
+  });
+
+  // Handle background image removal
+  bgImageRemove?.addEventListener("click", async () => {
+    bgImage = null;
+    await setBackgroundImage(null);
+    applyBackgroundImage(null);
+    updateBgImageUI();
+  });
+
+  // ---------------------------------------------------------------------------
+  // License Modal Event Handlers
+  // ---------------------------------------------------------------------------
+
+  // Upgrade button opens license modal
+  $("upgradeBtn")?.addEventListener("click", () => {
+    licenseModal.classList.remove("hidden");
+    licenseInput.focus();
+  });
+
+  // Activate license
+  activateBtn?.addEventListener("click", async () => {
+    const key = licenseInput.value.trim();
+    if (!key) {
+      licenseError.textContent = "Please enter a license key";
+      licenseError.classList.remove("hidden");
+      return;
+    }
+
+    activateBtn.disabled = true;
+    activateBtn.textContent = "Activating...";
+    licenseError.classList.add("hidden");
+
+    const result = await activateLicense(key);
+
+    if (result.success) {
+      premium = true;
+      licenseModal.classList.add("hidden");
+      licenseInput.value = "";
+      updatePremiumUI();
+      updateBgImageUI();
+    } else {
+      licenseError.textContent = result.error || "Activation failed";
+      licenseError.classList.remove("hidden");
+    }
+
+    activateBtn.disabled = false;
+    activateBtn.textContent = "Activate";
+  });
+
+  // Close license modal on backdrop click
+  licenseModal?.addEventListener("click", (e) => {
+    if (e.target === licenseModal) {
+      licenseModal.classList.add("hidden");
+      licenseError.classList.add("hidden");
+    }
   });
 
   // ---------------------------------------------------------------------------
@@ -422,6 +878,10 @@ async function init() {
     if (e.key === "Escape") {
       if (!dateModal.classList.contains("hidden")) saveDateAndClose();
       if (!settingsModal.classList.contains("hidden")) closeSettingsModal();
+      if (licenseModal && !licenseModal.classList.contains("hidden")) {
+        licenseModal.classList.add("hidden");
+        licenseError?.classList.add("hidden");
+      }
     }
   });
 }
